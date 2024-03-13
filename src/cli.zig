@@ -5,15 +5,18 @@
 const std = @import("std");
 const mem = std.mem;
 
+const scan = @import("scan/command.zig");
+
 const Chameleon = @import("chameleon").Chameleon;
 
 const usage_tmpl =
-    \\TPL - Generic Scanner
+    \\TPL - Third-Party License listing tool
     \\
     \\{[usage_title]s}: tpl <COMMAND> [OPTIONS]
     \\
     \\{[command_title]s}:
     \\  help    Print this message on stdout.
+    \\  scan    Scan a license of a file.
     \\
 ;
 
@@ -40,6 +43,10 @@ pub fn main() !void {
         return printUsage(cham, std.io.getStdOut().writer());
     }
 
+    if (mem.eql(u8, command, "scan")) {
+        return scan.command(allocator, cham, args[2..]);
+    }
+
     for (args) |arg| {
         std.debug.print("arg: {s}\n", .{arg});
     }
@@ -53,4 +60,8 @@ pub fn main() !void {
     }
 
     return std.fmt.format(stderr.writer(), err.fmt("\nUnknown COMMAND: {s}\n"), .{command});
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

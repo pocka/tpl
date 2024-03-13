@@ -28,6 +28,19 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(exe);
 
+    const lib = b.addSharedLibrary(.{
+        .name = "tpl-wasm",
+        .root_source_file = .{ .path = "src/wasm.zig" },
+        .target = .{
+            .cpu_arch = .wasm32,
+            .os_tag = .freestanding,
+        },
+        .optimize = optimize,
+    });
+    lib.rdynamic = true;
+
+    b.installArtifact(lib);
+
     const run_cmd = b.addRunArtifact(exe);
 
     run_cmd.step.dependOn(b.getInstallStep());
@@ -44,6 +57,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    addPackage(b, unit_tests, "chameleon");
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
