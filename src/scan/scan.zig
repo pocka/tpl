@@ -50,6 +50,22 @@ fn findLicenseFile(allocator: Allocator, params: Params) !?*const fs.File {
     return null;
 }
 
+fn stripRootPrefix(target_path: []const u8, root_dir: []const u8) []const u8 {
+    if (target_path.len <= root_dir.len) {
+        return target_path;
+    }
+
+    if (!mem.startsWith(u8, target_path, root_dir)) {
+        return target_path;
+    }
+
+    if (target_path[root_dir.len] != std.fs.path.sep) {
+        return target_path;
+    }
+
+    return target_path[(root_dir.len + 1)..];
+}
+
 fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
     const file = try findLicenseFile(allocator, params);
     if (file == null) {
@@ -57,10 +73,14 @@ fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
     }
 
     var target_files = try allocator.alloc(tpl.FileRef, 1);
-    target_files[0] = .{ .path = params.file };
+    target_files[0] = .{ .path = stripRootPrefix(params.file, params.root) };
 
     var license_includes = try allocator.alloc(tpl.IncludeItem, 1);
-    license_includes[0] = .{ .file = .{ .path = try file.?.getPath(allocator) } };
+    license_includes[0] = .{
+        .file = .{
+            .path = stripRootPrefix(try file.?.getPath(allocator), params.root),
+        },
+    };
 
     var licenses = try allocator.alloc(tpl.LicenseGroup, 1);
     licenses[0] = .{
@@ -78,8 +98,8 @@ fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
     var result = try allocator.create(tpl.Tpl);
     result.* = tpl.Tpl{
         .project = .{
-            .id = params.package_root,
-            .displayName = params.package_root,
+            .id = stripRootPrefix(params.package_root, params.root),
+            .displayName = stripRootPrefix(params.package_root, params.root),
             .description = null,
         },
         .licenses = licenses,

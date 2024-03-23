@@ -38,8 +38,8 @@ Deno.test("Find LICENSE file", () => {
 
 	assertObjectMatch(result, {
 		licenses: [{
-			files: [{ path: "/root/foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "/root/LICENSE" }] },
+			files: [{ path: "foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "LICENSE" }] },
 		}],
 	});
 });
@@ -60,8 +60,8 @@ Deno.test("Find British one, too", () => {
 
 	assertObjectMatch(result, {
 		licenses: [{
-			files: [{ path: "/root/foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "/root/LICENCE" }] },
+			files: [{ path: "foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "LICENCE" }] },
 		}],
 	});
 });
@@ -82,8 +82,8 @@ Deno.test("Ignore filename case", () => {
 
 	assertObjectMatch(result, {
 		licenses: [{
-			files: [{ path: "/root/foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "/root/liCEnSE" }] },
+			files: [{ path: "foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "liCEnSE" }] },
 		}],
 	});
 });
@@ -104,8 +104,8 @@ Deno.test("Find LICENSE file even with file extension", () => {
 
 	assertObjectMatch(result, {
 		licenses: [{
-			files: [{ path: "/root/foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "/root/LICENSE.txt" }] },
+			files: [{ path: "foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "LICENSE.txt" }] },
 		}],
 	});
 });
