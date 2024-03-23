@@ -64,7 +64,7 @@ Deno.test("Find British one, too", () => {
       license: { type: "arbitrary", includes: [{ path: "/root/LICENCE" }] },
     }],
   });
-})
+});
 
 Deno.test("Ignore filename case", () => {
   const api = new WasmApi(
@@ -86,7 +86,7 @@ Deno.test("Ignore filename case", () => {
       license: { type: "arbitrary", includes: [{ path: "/root/liCEnSE" }] },
     }],
   });
-})
+});
 
 Deno.test("Find LICENSE file even with file extension", () => {
   const api = new WasmApi(
