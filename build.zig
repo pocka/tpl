@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "tpl-generic-scanners",
+        .name = "tpl",
         .root_source_file = .{ .path = "src/cli.zig" },
         .target = target,
         .optimize = optimize,
@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 
     const lib = b.addSharedLibrary(.{
-        .name = "tpl-wasm",
+        .name = "tpl",
         .root_source_file = .{ .path = "src/wasm.zig" },
         .target = .{
             .cpu_arch = .wasm32,

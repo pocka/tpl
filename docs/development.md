@@ -20,10 +20,10 @@ $ zig build
 
 Here is the list of build outpus:
 
-| Path from project root             | Description           |
-| ---------------------------------- | --------------------- |
-| `zig-out/bin/tpl-generic-scanners` | CLI executable binary |
-| `zig-out/lib/tpl-wasm.wasm`        | WebAssembly module    |
+| Path from project root | Description           |
+| ---------------------- | --------------------- |
+| `zig-out/bin/tpl`      | CLI executable binary |
+| `zig-out/lib/tpl.wasm` | WebAssembly module    |
 
 In order to generate optimized binary, run:
 
@@ -61,7 +61,7 @@ The `--allow-read=.` permission is for loading WebAssembly module. If you want
 more strict permission, you can minimize the scope by:
 
 ```
-$ deno test --allow-read=zig-out/lib/tpl-wasm.wasm
+$ deno test --allow-read=zig-out/lib/tpl.wasm
 ```
 
 ## Source code

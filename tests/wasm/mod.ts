@@ -65,7 +65,7 @@ export class VirtualFS {
 }
 
 const wasm = await Deno.readFile(
-	new URL("../../zig-out/lib/tpl-wasm.wasm", import.meta.url),
+	new URL("../../zig-out/lib/tpl.wasm", import.meta.url),
 );
 
 const mod = new WebAssembly.Module(wasm);
