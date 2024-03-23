@@ -7,105 +7,105 @@ import { assertObjectMatch } from "./deps.ts";
 import { File, VirtualFS, WasmApi } from "./mod.ts";
 
 Deno.test("Return an error object if license was not found", () => {
-  const api = new WasmApi(
-    new VirtualFS([
-      new File("foo.txt", ""),
-    ]),
-  );
+	const api = new WasmApi(
+		new VirtualFS([
+			new File("foo.txt", ""),
+		]),
+	);
 
-  const result = api.scan({
-    file: "/root/foo.txt",
-    projectRoot: "/root",
-    root: "/root",
-  });
+	const result = api.scan({
+		file: "/root/foo.txt",
+		projectRoot: "/root",
+		root: "/root",
+	});
 
-  assertObjectMatch(result, { error: "LicenseOrCopyrightNotFound" });
+	assertObjectMatch(result, { error: "LicenseOrCopyrightNotFound" });
 });
 
 Deno.test("Find LICENSE file", () => {
-  const api = new WasmApi(
-    new VirtualFS([
-      new File("foo.txt", ""),
-      new File("LICENSE", ""),
-    ]),
-  );
+	const api = new WasmApi(
+		new VirtualFS([
+			new File("foo.txt", ""),
+			new File("LICENSE", ""),
+		]),
+	);
 
-  const result = api.scan({
-    file: "/root/foo.txt",
-    projectRoot: "/root",
-    root: "/root",
-  });
+	const result = api.scan({
+		file: "/root/foo.txt",
+		projectRoot: "/root",
+		root: "/root",
+	});
 
-  assertObjectMatch(result, {
-    licenses: [{
-      files: [{ path: "/root/foo.txt" }],
-      license: { type: "arbitrary", includes: [{ path: "/root/LICENSE" }] },
-    }],
-  });
+	assertObjectMatch(result, {
+		licenses: [{
+			files: [{ path: "/root/foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "/root/LICENSE" }] },
+		}],
+	});
 });
 
 Deno.test("Find British one, too", () => {
-  const api = new WasmApi(
-    new VirtualFS([
-      new File("foo.txt", ""),
-      new File("LICENCE", ""),
-    ]),
-  );
+	const api = new WasmApi(
+		new VirtualFS([
+			new File("foo.txt", ""),
+			new File("LICENCE", ""),
+		]),
+	);
 
-  const result = api.scan({
-    file: "/root/foo.txt",
-    projectRoot: "/root",
-    root: "/root",
-  });
+	const result = api.scan({
+		file: "/root/foo.txt",
+		projectRoot: "/root",
+		root: "/root",
+	});
 
-  assertObjectMatch(result, {
-    licenses: [{
-      files: [{ path: "/root/foo.txt" }],
-      license: { type: "arbitrary", includes: [{ path: "/root/LICENCE" }] },
-    }],
-  });
+	assertObjectMatch(result, {
+		licenses: [{
+			files: [{ path: "/root/foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "/root/LICENCE" }] },
+		}],
+	});
 });
 
 Deno.test("Ignore filename case", () => {
-  const api = new WasmApi(
-    new VirtualFS([
-      new File("foo.txt", ""),
-      new File("liCEnSE", ""),
-    ]),
-  );
+	const api = new WasmApi(
+		new VirtualFS([
+			new File("foo.txt", ""),
+			new File("liCEnSE", ""),
+		]),
+	);
 
-  const result = api.scan({
-    file: "/root/foo.txt",
-    projectRoot: "/root",
-    root: "/root",
-  });
+	const result = api.scan({
+		file: "/root/foo.txt",
+		projectRoot: "/root",
+		root: "/root",
+	});
 
-  assertObjectMatch(result, {
-    licenses: [{
-      files: [{ path: "/root/foo.txt" }],
-      license: { type: "arbitrary", includes: [{ path: "/root/liCEnSE" }] },
-    }],
-  });
+	assertObjectMatch(result, {
+		licenses: [{
+			files: [{ path: "/root/foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "/root/liCEnSE" }] },
+		}],
+	});
 });
 
 Deno.test("Find LICENSE file even with file extension", () => {
-  const api = new WasmApi(
-    new VirtualFS([
-      new File("foo.txt", ""),
-      new File("LICENSE.txt", ""),
-    ]),
-  );
+	const api = new WasmApi(
+		new VirtualFS([
+			new File("foo.txt", ""),
+			new File("LICENSE.txt", ""),
+		]),
+	);
 
-  const result = api.scan({
-    file: "/root/foo.txt",
-    projectRoot: "/root",
-    root: "/root",
-  });
+	const result = api.scan({
+		file: "/root/foo.txt",
+		projectRoot: "/root",
+		root: "/root",
+	});
 
-  assertObjectMatch(result, {
-    licenses: [{
-      files: [{ path: "/root/foo.txt" }],
-      license: { type: "arbitrary", includes: [{ path: "/root/LICENSE.txt" }] },
-    }],
-  });
+	assertObjectMatch(result, {
+		licenses: [{
+			files: [{ path: "/root/foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "/root/LICENSE.txt" }] },
+		}],
+	});
 });

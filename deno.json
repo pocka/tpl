@@ -1,6 +1,6 @@
 {
-  "useTabs": true,
-  "fmt": {
-    "include": ["deno.json", "tests/wasm/", "docs/"]
-  }
+	"fmt": {
+		"useTabs": true,
+		"include": ["deno.json", "tests/wasm/", "docs/"]
+	}
 }
