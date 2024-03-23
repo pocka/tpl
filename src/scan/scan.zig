@@ -32,7 +32,9 @@ pub fn scan(allocator: Allocator, params: Params) !*const tpl.Tpl {
     };
 }
 
-fn findLicenseFile(allocator: Allocator, params: Params) !?*const fs.File {
+fn findLicenseFiles(allocator: Allocator, params: Params) ![]const fs.File {
+    var files = std.ArrayList(fs.File).init(allocator);
+
     const dir = try fs.Dir.open(params.package_root);
 
     for (try dir.list(allocator)) |entry| {
@@ -43,11 +45,24 @@ fn findLicenseFile(allocator: Allocator, params: Params) !?*const fs.File {
         const stem = std.fs.path.stem(entry.file.path);
 
         if (ascii.eqlIgnoreCase(stem, "LICENSE") or ascii.eqlIgnoreCase(stem, "LICENCE")) {
-            return entry.file;
+            try files.append(entry.file.*);
+            continue;
+        }
+
+        const basename = std.fs.path.basename(entry.file.path);
+
+        if (mem.eql(u8, basename, "COPYING")) {
+            try files.append(entry.file.*);
+            continue;
+        }
+
+        if (mem.eql(u8, basename, "NOTICE")) {
+            try files.append(entry.file.*);
+            continue;
         }
     }
 
-    return null;
+    return files.toOwnedSlice();
 }
 
 fn stripRootPrefix(target_path: []const u8, root_dir: []const u8) []const u8 {
@@ -67,20 +82,22 @@ fn stripRootPrefix(target_path: []const u8, root_dir: []const u8) []const u8 {
 }
 
 fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
-    const file = try findLicenseFile(allocator, params);
-    if (file == null) {
+    const files = try findLicenseFiles(allocator, params);
+    if (files.len == 0) {
         return ScanError.LicenseOrCopyrightNotFound;
     }
 
     var target_files = try allocator.alloc(tpl.FileRef, 1);
     target_files[0] = .{ .path = stripRootPrefix(params.file, params.root) };
 
-    var license_includes = try allocator.alloc(tpl.IncludeItem, 1);
-    license_includes[0] = .{
-        .file = .{
-            .path = stripRootPrefix(try file.?.getPath(allocator), params.root),
-        },
-    };
+    var license_includes = try allocator.alloc(tpl.IncludeItem, files.len);
+    for (files, 0..) |file, i| {
+        license_includes[i] = .{
+            .file = .{
+                .path = stripRootPrefix(try file.getPath(allocator), params.root),
+            },
+        };
+    }
 
     var licenses = try allocator.alloc(tpl.LicenseGroup, 1);
     licenses[0] = .{

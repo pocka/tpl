@@ -109,3 +109,51 @@ Deno.test("Find LICENSE file even with file extension", () => {
 		}],
 	});
 });
+
+Deno.test("Find COPYING file", () => {
+	const api = new WasmApi(
+		new VirtualFS([
+			new File("foo.txt", ""),
+			new File("COPYING", ""),
+		]),
+	);
+
+	const result = api.scan({
+		file: "/root/foo.txt",
+		projectRoot: "/root",
+		root: "/root",
+	});
+
+	assertObjectMatch(result, {
+		licenses: [{
+			files: [{ path: "foo.txt" }],
+			license: { type: "arbitrary", includes: [{ path: "COPYING" }] },
+		}],
+	});
+});
+
+Deno.test("Find common Apache-2.0 style files", () => {
+	const api = new WasmApi(
+		new VirtualFS([
+			new File("foo.txt", ""),
+			new File("LICENSE", ""),
+			new File("NOTICE", ""),
+		]),
+	);
+
+	const result = api.scan({
+		file: "/root/foo.txt",
+		projectRoot: "/root",
+		root: "/root",
+	});
+
+	assertObjectMatch(result, {
+		licenses: [{
+			files: [{ path: "foo.txt" }],
+			license: {
+				type: "arbitrary",
+				includes: [{ path: "LICENSE" }, { path: "NOTICE" }],
+			},
+		}],
+	});
+});
