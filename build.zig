@@ -15,7 +15,9 @@ fn addPackage(b: *std.Build, target: *std.Build.Step.Compile, name: []const u8) 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
 
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{
+        .preferred_optimize_mode = .ReleaseSafe,
+    });
 
     const exe = b.addExecutable(.{
         .name = "tpl-generic-scanners",
@@ -35,7 +37,7 @@ pub fn build(b: *std.Build) void {
             .cpu_arch = .wasm32,
             .os_tag = .freestanding,
         },
-        .optimize = optimize,
+        .optimize = .ReleaseSmall,
     });
     lib.rdynamic = true;
 

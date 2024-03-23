@@ -25,6 +25,14 @@ Here is the list of build outpus:
 | `zig-out/bin/tpl-generic-scanners` | CLI executable binary |
 | `zig-out/lib/tpl-wasm.wasm`        | WebAssembly module    |
 
+In order to generate optimized binary, run:
+
+```
+$ zig build -Drelease
+```
+
+WebAssembly module is always build using size optimization.
+
 ## Test
 
 ### Unit tests
