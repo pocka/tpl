@@ -99,8 +99,8 @@ fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
         };
     }
 
-    var licenses = try allocator.alloc(tpl.LicenseGroup, 1);
-    licenses[0] = .{
+    var result = try allocator.create(tpl.Tpl);
+    result.* = tpl.Tpl{
         .files = target_files,
         .license = .{
             .arbitrary = .{
@@ -108,19 +108,6 @@ fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
                 .includes = license_includes,
             },
         },
-    };
-
-    var copyrights = try allocator.alloc(tpl.Copyright, 0);
-
-    var result = try allocator.create(tpl.Tpl);
-    result.* = tpl.Tpl{
-        .project = .{
-            .id = stripRootPrefix(params.package_root, params.root),
-            .displayName = stripRootPrefix(params.package_root, params.root),
-            .description = null,
-        },
-        .licenses = licenses,
-        .copyrights = copyrights,
     };
 
     return result;

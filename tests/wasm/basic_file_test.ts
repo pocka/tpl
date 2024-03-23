@@ -37,10 +37,8 @@ Deno.test("Find LICENSE file", () => {
 	});
 
 	assertObjectMatch(result, {
-		licenses: [{
-			files: [{ path: "foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "LICENSE" }] },
-		}],
+		files: [{ path: "foo.txt" }],
+		license: { type: "arbitrary", includes: [{ path: "LICENSE" }] },
 	});
 });
 
@@ -59,10 +57,8 @@ Deno.test("Find British one, too", () => {
 	});
 
 	assertObjectMatch(result, {
-		licenses: [{
-			files: [{ path: "foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "LICENCE" }] },
-		}],
+		files: [{ path: "foo.txt" }],
+		license: { type: "arbitrary", includes: [{ path: "LICENCE" }] },
 	});
 });
 
@@ -81,10 +77,8 @@ Deno.test("Ignore filename case", () => {
 	});
 
 	assertObjectMatch(result, {
-		licenses: [{
-			files: [{ path: "foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "liCEnSE" }] },
-		}],
+		files: [{ path: "foo.txt" }],
+		license: { type: "arbitrary", includes: [{ path: "liCEnSE" }] },
 	});
 });
 
@@ -103,10 +97,8 @@ Deno.test("Find LICENSE file even with file extension", () => {
 	});
 
 	assertObjectMatch(result, {
-		licenses: [{
-			files: [{ path: "foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "LICENSE.txt" }] },
-		}],
+		files: [{ path: "foo.txt" }],
+		license: { type: "arbitrary", includes: [{ path: "LICENSE.txt" }] },
 	});
 });
 
@@ -125,10 +117,8 @@ Deno.test("Find COPYING file", () => {
 	});
 
 	assertObjectMatch(result, {
-		licenses: [{
-			files: [{ path: "foo.txt" }],
-			license: { type: "arbitrary", includes: [{ path: "COPYING" }] },
-		}],
+		files: [{ path: "foo.txt" }],
+		license: { type: "arbitrary", includes: [{ path: "COPYING" }] },
 	});
 });
 
@@ -148,12 +138,10 @@ Deno.test("Find common Apache-2.0 style files", () => {
 	});
 
 	assertObjectMatch(result, {
-		licenses: [{
-			files: [{ path: "foo.txt" }],
-			license: {
-				type: "arbitrary",
-				includes: [{ path: "LICENSE" }, { path: "NOTICE" }],
-			},
-		}],
+		files: [{ path: "foo.txt" }],
+		license: {
+			type: "arbitrary",
+			includes: [{ path: "LICENSE" }, { path: "NOTICE" }],
+		},
 	});
 });

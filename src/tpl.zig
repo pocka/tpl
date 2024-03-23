@@ -7,31 +7,6 @@ const testing = std.testing;
 const mem = std.mem;
 const json = std.json;
 
-pub const Project = struct {
-    id: []const u8,
-
-    displayName: []const u8,
-
-    description: ?[]const u8 = null,
-
-    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
-        try jw.beginObject();
-
-        try jw.objectField("id");
-        try jw.write(self.id);
-
-        try jw.objectField("displayName");
-        try jw.write(self.displayName);
-
-        if (self.description) |description| {
-            try jw.objectField("description");
-            try jw.write(description);
-        }
-
-        try jw.endObject();
-    }
-};
-
 pub const FileRef = struct {
     path: []const u8,
 };
@@ -412,147 +387,105 @@ test "Parse ArbitraryLicense" {
     try testing.expectEqualStrings(arbitrary.value.includes[0].text.text, "foo");
 }
 
-pub const LicenseGroup = struct {
-    files: []const FileRef,
+pub const License = union(enum) {
+    spdx: SpdxLicense,
+    arbitrary: ArbitraryLicense,
 
-    license: union(enum) {
-        none,
+    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
+        try switch (self.*) {
+            .spdx => |spdx| jw.write(spdx),
+            .arbitrary => |arbitrary| jw.write(arbitrary),
+        };
+    }
 
-        spdx: SpdxLicense,
+    pub fn jsonParse(
+        allocator: mem.Allocator,
+        source: anytype,
+        options: json.ParseOptions,
+    ) json.ParseError(@TypeOf(source.*))!@This() {
+        const value = try json.innerParse(json.Value, allocator, source, options);
 
-        arbitrary: ArbitraryLicense,
+        return @This().jsonParseFromValue(allocator, value, options);
+    }
 
-        pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
-            try switch (self.*) {
-                .none => jw.write(null),
-                .spdx => |spdx| jw.write(spdx),
-                .arbitrary => |arbitrary| jw.write(arbitrary),
-            };
-        }
-
-        pub fn jsonParse(
-            allocator: mem.Allocator,
-            source: anytype,
-            options: json.ParseOptions,
-        ) json.ParseError(@TypeOf(source.*))!@This() {
-            const value = try json.innerParse(json.Value, allocator, source, options);
-
-            return @This().jsonParseFromValue(allocator, value, options);
-        }
-
-        pub fn jsonParseFromValue(
-            allocator: mem.Allocator,
-            value: json.Value,
-            options: json.ParseOptions,
-        ) json.ParseFromValueError!@This() {
-            return switch (value) {
-                .null => @This(){ .none = void{} },
-
-                .object => |obj| {
-                    const t = obj.get("type") orelse return error.UnexpectedToken;
-                    if (t != .string) {
-                        return error.UnexpectedToken;
-                    }
-
-                    if (mem.eql(u8, t.string, "spdx")) {
-                        const spdx = try json.parseFromValueLeaky(SpdxLicense, allocator, value, options);
-
-                        return @This(){ .spdx = spdx };
-                    }
-
-                    if (mem.eql(u8, t.string, "arbitrary")) {
-                        const arbitrary = try json.parseFromValueLeaky(ArbitraryLicense, allocator, value, options);
-
-                        return @This(){ .arbitrary = arbitrary };
-                    }
-
+    pub fn jsonParseFromValue(
+        allocator: mem.Allocator,
+        value: json.Value,
+        options: json.ParseOptions,
+    ) json.ParseFromValueError!@This() {
+        return switch (value) {
+            .object => |obj| {
+                const t = obj.get("type") orelse return error.UnexpectedToken;
+                if (t != .string) {
                     return error.UnexpectedToken;
-                },
+                }
 
-                else => error.UnexpectedToken,
-            };
-        }
-    },
+                if (mem.eql(u8, t.string, "spdx")) {
+                    const spdx = try json.parseFromValueLeaky(SpdxLicense, allocator, value, options);
+
+                    return @This(){ .spdx = spdx };
+                }
+
+                if (mem.eql(u8, t.string, "arbitrary")) {
+                    const arbitrary = try json.parseFromValueLeaky(ArbitraryLicense, allocator, value, options);
+
+                    return @This(){ .arbitrary = arbitrary };
+                }
+
+                return error.UnexpectedToken;
+            },
+
+            else => error.UnexpectedToken,
+        };
+    }
 };
-
-test "Parse no license info files" {
-    const input =
-        \\{
-        \\  "files": [
-        \\    { "path": "src/lib.h" }
-        \\  ],
-        \\  "license": null
-        \\}
-        \\
-    ;
-
-    const group = try json.parseFromSlice(LicenseGroup, testing.allocator, input, .{});
-    defer group.deinit();
-
-    try testing.expectEqualStrings(group.value.files[0].path, "src/lib.h");
-    try testing.expectEqualStrings(@tagName(group.value.license), "none");
-}
 
 test "Parse SPDX files (simple)" {
     const input =
         \\{
-        \\  "files": [{ "path": "config.json" }],
-        \\  "license": {
-        \\    "type": "spdx",
-        \\    "rawId": "CC0-1.0",
-        \\    "expression": {
-        \\      "id": "CC0-1.0",
-        \\      "includes": [{ "path": "LICENSES/CC0-1.0.txt" }]
-        \\    }
+        \\  "type": "spdx",
+        \\  "rawId": "CC0-1.0",
+        \\  "expression": {
+        \\    "id": "CC0-1.0",
+        \\    "includes": [{ "path": "LICENSES/CC0-1.0.txt" }]
         \\  }
         \\}
         \\
     ;
 
-    const group = try json.parseFromSlice(LicenseGroup, testing.allocator, input, .{});
-    defer group.deinit();
+    const license = try json.parseFromSlice(License, testing.allocator, input, .{});
+    defer license.deinit();
 
-    try testing.expectEqualStrings(group.value.files[0].path, "config.json");
-    try testing.expectEqualStrings(@tagName(group.value.license), "spdx");
-    try testing.expectEqualStrings(group.value.license.spdx.expression.simple.license.id, "CC0-1.0");
+    try testing.expectEqualStrings(@tagName(license.value), "spdx");
+    try testing.expectEqualStrings(license.value.spdx.expression.simple.license.id, "CC0-1.0");
 }
 
 test "Parse arbitrary files" {
     const input =
         \\{
-        \\  "files": [
-        \\    { "path": "src/lib.h" }
-        \\  ],
-        \\  "license": {
-        \\    "type": "arbitrary",
-        \\    "includes": [{ "path": "LICENSE.txt" }]
-        \\  }
+        \\  "type": "arbitrary",
+        \\  "includes": [{ "path": "LICENSE.txt" }]
         \\}
         \\
     ;
 
-    const group = try json.parseFromSlice(LicenseGroup, testing.allocator, input, .{});
-    defer group.deinit();
+    const license = try json.parseFromSlice(License, testing.allocator, input, .{});
+    defer license.deinit();
 
-    try testing.expectEqualStrings(group.value.files[0].path, "src/lib.h");
-    try testing.expectEqualStrings(@tagName(group.value.license), "arbitrary");
+    try testing.expectEqualStrings(license.value.arbitrary.includes[0].file.path, "LICENSE.txt");
+    try testing.expectEqualStrings(@tagName(license.value), "arbitrary");
 }
 
 test "Reject invalid license format" {
     const input =
         \\{
-        \\  "files": [
-        \\    { "path": "src/lib.h" }
-        \\  ],
-        \\  "license": {
-        \\    "type": "my_custom_format",
-        \\    "includes": [{"text": "foo"}]
-        \\  }
+        \\  "type": "my_custom_format",
+        \\  "includes": [{"text": "foo"}]
         \\}
         \\
     ;
 
-    _ = json.parseFromSlice(LicenseGroup, testing.allocator, input, .{}) catch {
+    _ = json.parseFromSlice(License, testing.allocator, input, .{}) catch {
         return;
     };
 
@@ -658,43 +591,76 @@ test "Parse full copyright object" {
 }
 
 pub const Tpl = struct {
-    project: Project,
+    files: []const FileRef,
 
-    licenses: []const LicenseGroup,
+    license: ?License = null,
 
-    copyrights: []const Copyright,
+    copyrights: ?[]const Copyright = null,
+
+    metadata: ?json.ArrayHashMap(json.Value) = null,
+
+    pub fn jsonStringify(self: *const @This(), jw: anytype) !void {
+        try jw.beginObject();
+
+        try jw.objectField("files");
+        try jw.write(self.files);
+
+        if (self.license) |license| {
+            try jw.objectField("license");
+            try jw.write(license);
+        }
+
+        if (self.copyrights) |copyrights| {
+            try jw.objectField("copyrights");
+            try jw.write(copyrights);
+        }
+
+        if (self.metadata) |metadata| {
+            try jw.objectField("metadata");
+            try jw.write(metadata);
+        }
+
+        try jw.endObject();
+    }
 };
+
+test "Omit empty properties" {
+    const input = Tpl{
+        .files = &[_]FileRef{.{ .path = "foo" }},
+        .license = null,
+        .copyrights = null,
+        .metadata = null,
+    };
+
+    const seriealized = try json.stringifyAlloc(testing.allocator, input, .{});
+    defer testing.allocator.free(seriealized);
+
+    try testing.expect(mem.indexOf(u8, seriealized, "files").? >= 0);
+    try testing.expect(mem.indexOf(u8, seriealized, "license") == null);
+    try testing.expect(mem.indexOf(u8, seriealized, "copyrights") == null);
+    try testing.expect(mem.indexOf(u8, seriealized, "metadata") == null);
+}
 
 test "Parse TPL line JSON" {
     const input =
         \\{
-        \\  "project": {
-        \\    "id": "vendor/libsomething",
-        \\    "displayName": "libsomething"
-        \\  },
-        \\  "licenses": [
-        \\    {
-        \\      "files": [{ "path": "vendor/something/libsomething.h" }],
-        \\      "license": {
-        \\        "type": "arbitrary",
-        \\        "includes": [{ "path": "vendor/something/LICENSE" }]
-        \\      }
-        \\    },
-        \\    {
-        \\      "files": [{ "path": "vendor/something/screenshot.png" }],
-        \\      "license": {
-        \\        "type": "spdx",
-        \\        "rawId": "CC0-1.0",
-        \\        "expression": {
-        \\          "id": "CC0-1.0",
-        \\          "includes": [{ "path": "vendor/something/LICENSES/CC0-1.0.txt" }]
-        \\        }
-        \\      }
+        \\  "files": [{ "path": "vendor/something/libsomething.h" }],
+        \\  "license": {
+        \\    "type": "spdx",
+        \\    "rawId": "CC0-1.0",
+        \\    "expression": {
+        \\      "id": "CC0-1.0",
+        \\      "includes": [{ "path": "vendor/something/LICENSES/CC0-1.0.txt" }]
         \\    }
-        \\  ],
+        \\  },
         \\  "copyrights": [
         \\    { "text": "Copyright 2020 John Doe" }
-        \\  ]
+        \\  ],
+        \\  "metadata": {
+        \\    "some-namespace": {
+        \\      "propertyA": "foo"
+        \\    }
+        \\  }
         \\}
         \\
     ;
@@ -702,44 +668,40 @@ test "Parse TPL line JSON" {
     const tpl = try json.parseFromSlice(Tpl, testing.allocator, input, .{});
     defer tpl.deinit();
 
-    try testing.expectEqualStrings(tpl.value.project.id, "vendor/libsomething");
+    try testing.expectEqualStrings(tpl.value.copyrights.?[0].text, "Copyright 2020 John Doe");
 }
 
 test "Serialize <-> Deserialize without problem" {
     const input = Tpl{
-        .project = Project{ .id = "project_id", .displayName = "Project Name" },
-        .licenses = &[_]LicenseGroup{
-            LicenseGroup{ .files = &[_]FileRef{
-                .{ .path = "vendor/foo/foo.c" },
-            }, .license = .{
-                .spdx = .{
-                    .type = "spdx",
-                    .rawId = "MIT OR LicenseRef-Foo",
-                    .expression = .{
-                        .@"or" = &.{
-                            .conjunction = "OR",
-                            .left = .{
-                                .simple = .{
-                                    .license = .{
-                                        .id = "MIT",
-                                        .includes = &[_]IncludeItem{
-                                            IncludeItem{ .file = .{ .path = "vendor/foo/LICENSE-MIT.txt" } },
-                                        },
+        .files = &[_]FileRef{.{ .path = "vendor/foo/foo.c" }},
+        .license = .{
+            .spdx = .{
+                .type = "spdx",
+                .rawId = "MIT OR LicenseRef-Foo",
+                .expression = .{
+                    .@"or" = &.{
+                        .conjunction = "OR",
+                        .left = .{
+                            .simple = .{
+                                .license = .{
+                                    .id = "MIT",
+                                    .includes = &[_]IncludeItem{
+                                        IncludeItem{ .file = .{ .path = "vendor/foo/LICENSE-MIT.txt" } },
                                     },
                                 },
                             },
-                            .right = .{
-                                .simple = .{
-                                    .licenseRef = .{
-                                        .licenseRef = "Foo",
-                                        .includes = &[_]IncludeItem{IncludeItem{ .file = .{ .path = "vendor/foo/LICENSE-Foo.txt" } }},
-                                    },
+                        },
+                        .right = .{
+                            .simple = .{
+                                .licenseRef = .{
+                                    .licenseRef = "Foo",
+                                    .includes = &[_]IncludeItem{IncludeItem{ .file = .{ .path = "vendor/foo/LICENSE-Foo.txt" } }},
                                 },
                             },
                         },
                     },
                 },
-            } },
+            },
         },
         .copyrights = &[_]Copyright{.{ .text = "Copyright 2020 John Doe" }},
     };
