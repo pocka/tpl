@@ -9,28 +9,23 @@ const mem = std.mem;
 const scan = @import("scan.zig");
 const Strategy = scan.Strategy;
 
-const Chameleon = @import("chameleon").Chameleon;
+const Term = @import("../Term.zig");
 
 const usage =
     \\TPL Scan - Scan license for a file
     \\
-    \\{[usage_title]s}: tpl scan [OPTIONS] <FILE>
+    \\<u><b>USAGE</b></u>: tpl scan [OPTIONS] \<FILE\>
     \\
-    \\{[option_title]s}:
-    \\  --strategy <VALUE>, -s  Scan strategy. Available values: file [default: file]
-    \\  --package <PATH>, -p    Package directory. Defaults to cwd.
-    \\  --root <PATH>           Root directory. Defaults to cwd.
+    \\<u><b>OPTIONS</b></u>:
+    \\  --strategy \<VALUE>, -s  Scan strategy. Available values: file [default: file]
+    \\  --package \<PATH>, -p    Package directory. Defaults to cwd.
+    \\  --root \<PATH>           Root directory. Defaults to cwd.
     \\  --help                  Print this message on stdout.
     \\
 ;
 
-fn printUsage(comptime cham: Chameleon, writer: anytype) !void {
-    comptime var title = cham.underline().bold();
-
-    return std.fmt.format(writer, usage, .{
-        .usage_title = title.fmt("USAGE"),
-        .option_title = title.fmt("OPTIONS"),
-    });
+fn printUsage(term: Term) !void {
+    return term.format(usage, .{});
 }
 
 const StrategyParseError = error{
@@ -67,9 +62,7 @@ const Options = struct {
         };
     }
 
-    fn parseInternal(self: *Options, args: []const [:0]const u8) !void {
-        comptime var errmsg = Chameleon.init(.Auto).red();
-
+    fn parseInternal(self: *Options, stderr: Term, args: []const [:0]const u8) !void {
         if (args.len == 0) {
             return;
         }
@@ -83,57 +76,57 @@ const Options = struct {
 
         if (mem.eql(u8, flag, "--strategy") or mem.eql(u8, flag, "-s")) {
             if (args.len < 2) {
-                try std.fmt.format(std.io.getStdErr().writer(), errmsg.fmt("Option `{s}` requires a value.\n"), .{flag});
+                try stderr.format("<fg.red>Option `{s}` requires a value.</fg.red>\n", .{flag});
                 return OptionParseError.MissingValue;
             }
 
             const value = args[1];
 
             self.strategy = parseStrategy(value) catch |err| {
-                try std.fmt.format(std.io.getStdErr().writer(), errmsg.fmt("Invalid strategy option value: {s}.\n"), .{value});
+                try stderr.format("<fg.red>Invalid strategy option value: {s}.</fg.red>\n", .{value});
                 return err;
             };
 
-            return self.parseInternal(args[2..]);
+            return self.parseInternal(stderr, args[2..]);
         }
 
         if (mem.startsWith(u8, flag, "--package") or mem.eql(u8, flag, "-p")) {
             if (args.len < 2) {
-                try std.fmt.format(std.io.getStdErr().writer(), errmsg.fmt("Option `{s}` requires a value.\n"), .{flag});
+                try stderr.format("<fg.red>Option `{s}` requires a value.</fg.red>\n", .{flag});
                 return OptionParseError.MissingValue;
             }
 
             self.package_root = args[1];
 
-            return self.parseInternal(args[2..]);
+            return self.parseInternal(stderr, args[2..]);
         }
 
         if (mem.startsWith(u8, flag, "--root")) {
             if (args.len < 2) {
-                try std.fmt.format(std.io.getStdErr().writer(), errmsg.fmt("Option `{s}` requires a value.\n"), .{flag});
+                try stderr.format("<fg.red>Option `{s}` requires a value.</fg.red>\n", .{flag});
                 return OptionParseError.MissingValue;
             }
 
             self.root = args[1];
 
-            return self.parseInternal(args[2..]);
+            return self.parseInternal(stderr, args[2..]);
         }
 
         if (mem.startsWith(u8, flag, "-")) {
-            try std.fmt.format(std.io.getStdErr().writer(), errmsg.fmt("Unknown option: {s}\n"), .{flag});
+            try stderr.format("<fg.red>Unknown option: {s}</fg.red>\n", .{flag});
             return OptionParseError.UnknownOption;
         }
 
         if (self.file.len > 0) {
-            try std.io.getStdErr().writeAll(errmsg.fmt("You can only pass one file at a time.\n"));
+            try stderr.format("<fg.red>You can only pass one file at a time.</fg.red>\n", .{});
             return OptionParseError.DuplicatedFile;
         }
 
         self.file = flag;
-        return self.parseInternal(args[1..]);
+        return self.parseInternal(stderr, args[1..]);
     }
 
-    pub fn parse(args: []const [:0]const u8) !Options {
+    pub fn parse(stderr: Term, args: []const [:0]const u8) !Options {
         var my = Options{
             .help = false,
             .strategy = Strategy.file,
@@ -142,29 +135,27 @@ const Options = struct {
             .file = "",
         };
 
-        try my.parseInternal(args);
+        try my.parseInternal(stderr, args);
 
         return my;
     }
 };
 
-pub fn command(allocator: mem.Allocator, comptime cham: Chameleon, args: []const [:0]const u8) !void {
-    comptime var errmsg = cham.red();
+pub fn command(allocator: mem.Allocator, args: []const [:0]const u8) !void {
+    const stderr = Term.init(.{ .file = std.io.getStdErr() });
 
-    const stderr = std.io.getStdErr();
-
-    var opts = Options.parse(args) catch {
-        try printUsage(cham, stderr.writer());
+    var opts = Options.parse(stderr, args) catch {
+        try printUsage(stderr);
         std.process.exit(1);
     };
 
     if (opts.help) {
-        return printUsage(cham, std.io.getStdOut().writer());
+        return printUsage(Term.init(.{ .file = std.io.getStdOut() }));
     }
 
     if (opts.file.len == 0) {
-        try printUsage(cham, stderr.writer());
-        try stderr.writeAll(errmsg.fmt("FILE is required\n"));
+        try printUsage(stderr);
+        try stderr.format("<fg.red>FILE is required</fg.red>\n", .{});
         std.process.exit(1);
     }
 
@@ -180,11 +171,11 @@ pub fn command(allocator: mem.Allocator, comptime cham: Chameleon, args: []const
     const result = scan.scan(allocator, opts.toParams()) catch |err| {
         switch (err) {
             scan.ScanError.LicenseOrCopyrightNotFound => {
-                try stderr.writeAll(errmsg.fmt("License file not found.\n"));
+                try stderr.format("<fg.red>License file not found</fg.red>\n", .{});
                 std.process.exit(2);
             },
             else => {
-                try stderr.writeAll(errmsg.fmt("Scan aborted due to error.\n"));
+                try stderr.format("<fg.red>Scan aborted due to an error.</fg.red>\n", .{});
                 std.process.exit(1);
             },
         }

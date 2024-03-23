@@ -6,30 +6,24 @@ const std = @import("std");
 const mem = std.mem;
 
 const scan = @import("scan/command.zig");
-
-const Chameleon = @import("chameleon").Chameleon;
+const Term = @import("Term.zig");
 
 const usage_tmpl =
     \\TPL - Third-Party License listing tool
     \\
-    \\{[usage_title]s}: tpl <COMMAND> [OPTIONS]
+    \\<b><u>USAGE</u></b>: tpl \<COMMAND\> [OPTIONS]
     \\
-    \\{[command_title]s}:
+    \\<b><u>COMMAND</u></b>:
     \\  help    Print this message on stdout.
     \\  scan    Scan a license of a file.
     \\
 ;
 
-fn printUsage(comptime cham: Chameleon, writer: anytype) !void {
-    comptime var title = cham.underline().bold();
-
-    return std.fmt.format(writer, usage_tmpl, .{ .command_title = title.fmt("COMMAND"), .usage_title = title.fmt("USAGE") });
+fn printUsage(term: Term) !void {
+    return term.format(usage_tmpl, .{});
 }
 
 pub fn main() !void {
-    comptime var cham = Chameleon.init(.Auto);
-    comptime var err = cham.red();
-
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
@@ -39,27 +33,27 @@ pub fn main() !void {
 
     const command = if (args.len > 1) args[1] else "";
 
+    const stderr = Term.init(.{ .file = std.io.getStdErr() });
+
     if (mem.eql(u8, command, "help")) {
-        return printUsage(cham, std.io.getStdOut().writer());
+        return printUsage(Term.init(.{ .file = std.io.getStdOut() }));
     }
 
     if (mem.eql(u8, command, "scan")) {
-        return scan.command(allocator, cham, args[2..]);
+        return scan.command(allocator, args[2..]);
     }
 
     for (args) |arg| {
         std.debug.print("arg: {s}\n", .{arg});
     }
 
-    const stderr = std.io.getStdErr();
-
-    try printUsage(cham, stderr.writer());
+    try printUsage(stderr);
 
     if (command.len == 0) {
-        return stderr.writeAll(err.fmt("\nPlease provide a COMMAND\n"));
+        return stderr.format("\n<fg.red>Please provide a COMMAND</fg.red>\n", .{});
     }
 
-    return std.fmt.format(stderr.writer(), err.fmt("\nUnknown COMMAND: {s}\n"), .{command});
+    return stderr.format("\n<fg.red>Unknown COMMAND</fg.red>: {s}\n", .{command});
 }
 
 test {

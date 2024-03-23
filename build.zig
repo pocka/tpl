@@ -4,14 +4,6 @@
 
 const std = @import("std");
 
-fn addPackage(b: *std.Build, target: *std.Build.Step.Compile, name: []const u8) void {
-    const dep = b.dependency(name, .{});
-
-    const mod = dep.module(name);
-
-    target.addModule(name, mod);
-}
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
 
@@ -25,8 +17,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
-    addPackage(b, exe, "chameleon");
 
     b.installArtifact(exe);
 
@@ -59,8 +49,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
-    addPackage(b, unit_tests, "chameleon");
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
