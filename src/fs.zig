@@ -26,22 +26,18 @@ pub usingnamespace switch (builtin.os.tag) {
         };
 
         export fn add_file_to_dir_entry_context(
-            allocator: *const mem.Allocator,
             ctx: *WasmDirEntryContext,
             path_ptr: [*]const u8,
             path_len: usize,
         ) void {
             const path = path_ptr[0..path_len];
 
-            var file = allocator.create(File) catch unreachable;
-            file.* = .{ .path = path };
-
-            ctx.entries.append(.{ .file = file }) catch unreachable;
+            ctx.entries.append(.{ .file = .{ .path = path } }) catch unreachable;
         }
 
         pub const Entry = union(enum) {
-            dir: *const Dir,
-            file: *const File,
+            dir: Dir,
+            file: File,
         };
 
         pub const Dir = struct {
@@ -95,8 +91,8 @@ pub usingnamespace switch (builtin.os.tag) {
     },
     else => struct {
         pub const Entry = union(enum) {
-            dir: *const Dir,
-            file: *const File,
+            dir: Dir,
+            file: File,
         };
 
         pub const Dir = struct {
@@ -151,22 +147,10 @@ pub usingnamespace switch (builtin.os.tag) {
 
                     switch (entry.kind) {
                         .file => {
-                            var file = try allocator.create(File);
-                            file.* = .{
-                                .path = name,
-                                .parent = &self,
-                            };
-
-                            try entries.append(.{ .file = file });
+                            try entries.append(.{ .file = .{ .path = name, .parent = &self } });
                         },
                         .directory => {
-                            var child_dir = try allocator.create(Dir);
-                            child_dir.* = .{
-                                .path = name,
-                                .parent = &self,
-                            };
-
-                            try entries.append(.{ .dir = child_dir });
+                            try entries.append(.{ .dir = .{ .path = name, .parent = &self } });
                         },
                         else => {},
                     }
@@ -185,7 +169,6 @@ pub usingnamespace switch (builtin.os.tag) {
 
         pub const File = struct {
             path: []const u8,
-
             parent: ?*const Dir,
 
             /// Returns file contents as UTF-8 text.

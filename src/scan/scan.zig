@@ -32,8 +32,8 @@ pub fn scan(allocator: Allocator, params: Params) !*const tpl.Tpl {
     };
 }
 
-fn findLicenseFiles(allocator: Allocator, params: Params) ![]const fs.File {
-    var files = std.ArrayList(fs.File).init(allocator);
+fn findLicenseFiles(allocator: Allocator, params: Params) ![]const []const u8 {
+    var files = std.ArrayList([]const u8).init(allocator);
 
     const dir = try fs.Dir.open(params.package_root);
 
@@ -45,19 +45,19 @@ fn findLicenseFiles(allocator: Allocator, params: Params) ![]const fs.File {
         const stem = std.fs.path.stem(entry.file.path);
 
         if (ascii.eqlIgnoreCase(stem, "LICENSE") or ascii.eqlIgnoreCase(stem, "LICENCE")) {
-            try files.append(entry.file.*);
+            try files.append(try entry.file.getPath(allocator));
             continue;
         }
 
         const basename = std.fs.path.basename(entry.file.path);
 
         if (mem.eql(u8, basename, "COPYING")) {
-            try files.append(entry.file.*);
+            try files.append(try entry.file.getPath(allocator));
             continue;
         }
 
         if (mem.eql(u8, basename, "NOTICE")) {
-            try files.append(entry.file.*);
+            try files.append(try entry.file.getPath(allocator));
             continue;
         }
     }
@@ -94,7 +94,7 @@ fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
     for (files, 0..) |file, i| {
         license_includes[i] = .{
             .file = .{
-                .path = stripRootPrefix(try file.getPath(allocator), params.root),
+                .path = stripRootPrefix(file, params.root),
             },
         };
     }
@@ -111,6 +111,33 @@ fn scanFile(allocator: Allocator, params: Params) !*const tpl.Tpl {
     };
 
     return result;
+}
+
+test "Scan tests/suites/file_basic" {
+    const testing = std.testing;
+
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    const cwd = std.fs.cwd();
+
+    const suites_rel = try std.fs.path.resolve(allocator, &[_][]const u8{ @src().file, "../../../tests/suites" });
+
+    const suites = try cwd.realpathAlloc(allocator, suites_rel);
+    const file_basic = try std.fs.path.resolve(allocator, &[_][]const u8{ suites, "file_basic/" });
+    const target_file = try std.fs.path.resolve(allocator, &[_][]const u8{ file_basic, "src/lib.c" });
+
+    const result = try scan(allocator, .{
+        .strategy = .file,
+        .file = target_file,
+        .root = suites,
+        .package_root = file_basic,
+    });
+
+    try testing.expect(result.license != null);
+    try testing.expect(result.license.? == .arbitrary);
 }
 
 test {

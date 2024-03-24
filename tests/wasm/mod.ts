@@ -107,7 +107,6 @@ interface WasmExports {
 	allocate_u8(allocator: Allocator, len: number): StringPtr;
 	get_cstring_len(ptr: CstringPtr): number;
 	add_file_to_dir_entry_context(
-		allocator: Allocator,
 		ctx: Pointer,
 		pathPtr: number,
 		pathLen: number,
@@ -158,7 +157,7 @@ export class WasmApi {
 					return this.#makeString(file);
 				},
 				list_dir: (
-					allocator: Allocator,
+					_allocator: Allocator,
 					path_ptr: number,
 					path_len: number,
 					ctx: Pointer,
@@ -185,7 +184,6 @@ export class WasmApi {
 								);
 
 								this.#exports.add_file_to_dir_entry_context(
-									allocator,
 									ctx,
 									childPath.ptr,
 									childPath.len,
@@ -204,7 +202,6 @@ export class WasmApi {
 							const entryPathStr = this.#makeString(entryPath);
 
 							this.#exports.add_file_to_dir_entry_context(
-								allocator,
 								ctx,
 								entryPathStr.ptr,
 								entryPathStr.len,
