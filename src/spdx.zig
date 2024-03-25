@@ -10,11 +10,14 @@
 const std = @import("std");
 const mem = std.mem;
 
+const spdx = @import("spdx");
+
 const ParseError = error{
     LessThanMinimumCharacterLength,
     IllegalCharacter,
     MissingColonAfterDocumentRef,
     MissingLicenseRefPrefix,
+    UnknownLicenseId,
 };
 
 pub const IdString = struct {
@@ -128,4 +131,44 @@ test "Reject invalid license-ref" {
     try testing.expectError(ParseError.LessThanMinimumCharacterLength, LicenseRef.parse("LicenseRef-"));
     try testing.expectError(ParseError.IllegalCharacter, LicenseRef.parse("LicenseRef-foo:LicenseRef-foo"));
     try testing.expectError(ParseError.MissingLicenseRefPrefix, LicenseRef.parse("DocumentRef-foo:foo"));
+}
+
+pub const LicenseId = struct {
+    id: []const u8,
+
+    pub fn parse(text: []const u8) ParseError!@This() {
+        inline for (spdx.idList) |id| {
+            if (std.ascii.eqlIgnoreCase(id, text)) {
+                return @This(){ .id = id };
+            }
+        }
+
+        return ParseError.UnknownLicenseId;
+    }
+};
+
+test "Parse valid license-id" {
+    const testing = std.testing;
+
+    {
+        const result = try LicenseId.parse("MIT");
+        try testing.expectEqualSlices(u8, "MIT", result.id);
+    }
+
+    {
+        const result = try LicenseId.parse("mit");
+        try testing.expectEqualSlices(u8, "MIT", result.id);
+    }
+
+    {
+        const result = try LicenseId.parse("gpl-3.0-or-LaTER");
+        try testing.expectEqualSlices(u8, "GPL-3.0-or-later", result.id);
+    }
+}
+
+test "Reject invalid license-id" {
+    const testing = std.testing;
+
+    try testing.expectError(ParseError.UnknownLicenseId, LicenseId.parse("LicenseRef-foo"));
+    try testing.expectError(ParseError.UnknownLicenseId, LicenseId.parse("Mit-with-my-super-lines"));
 }
