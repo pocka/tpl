@@ -17,6 +17,7 @@ const ParseError = error{
     IllegalCharacter,
     MissingColonAfterDocumentRef,
     MissingLicenseRefPrefix,
+    InvalidSimpleExpression,
     UnknownLicenseId,
 };
 
@@ -171,4 +172,59 @@ test "Reject invalid license-id" {
 
     try testing.expectError(ParseError.UnknownLicenseId, LicenseId.parse("LicenseRef-foo"));
     try testing.expectError(ParseError.UnknownLicenseId, LicenseId.parse("Mit-with-my-super-lines"));
+}
+
+pub const SimpleExpression = union(enum) {
+    license_id: LicenseId,
+    license_id_and_plus: LicenseId,
+    license_ref: LicenseRef,
+
+    pub fn parse(text: []const u8) ParseError!@This() {
+        if (LicenseId.parse(text)) |ok| {
+            return @This(){ .license_id = ok };
+        } else |_| {}
+
+        if (mem.endsWith(u8, text, "+")) {
+            if (LicenseId.parse(text[0 .. text.len - 1])) |ok| {
+                return @This(){ .license_id_and_plus = ok };
+            } else |_| {}
+        }
+
+        if (LicenseRef.parse(text)) |ok| {
+            return @This(){ .license_ref = ok };
+        } else |_| {}
+
+        // TODO: Revisit error handling. Because SimpleExpression only uses InvalidSimpleExpression,
+        //       errors returned by LicenseId and LicenseRef (and downstream, too) are essentialy meaningless.
+        return ParseError.InvalidSimpleExpression;
+    }
+};
+
+test "Parse valid simple-expression" {
+    const testing = std.testing;
+
+    {
+        const result = try SimpleExpression.parse("Apache-2.0");
+        try testing.expectEqualSlices(u8, "Apache-2.0", result.license_id.id);
+    }
+
+    {
+        const result = try SimpleExpression.parse("CDDL-1.0+");
+        try testing.expectEqualSlices(u8, "CDDL-1.0", result.license_id_and_plus.id);
+    }
+
+    {
+        const result = try SimpleExpression.parse("DocumentRef-Foo:LicenseRef-Bar");
+        try testing.expectEqualSlices(u8, "Foo", result.license_ref.document_ref.?.value);
+        try testing.expectEqualSlices(u8, "Bar", result.license_ref.license_ref.value);
+    }
+}
+
+test "Reject invalid simple-expression" {
+    const testing = std.testing;
+
+    try testing.expectError(ParseError.InvalidSimpleExpression, SimpleExpression.parse("MIT OR Apache-2.0"));
+    try testing.expectError(ParseError.InvalidSimpleExpression, SimpleExpression.parse("my-awesome-license"));
+    try testing.expectError(ParseError.InvalidSimpleExpression, SimpleExpression.parse("MIT+Apache-2.0"));
+    try testing.expectError(ParseError.InvalidSimpleExpression, SimpleExpression.parse("LicenseRef-Foo+"));
 }
